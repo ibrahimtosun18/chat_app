@@ -54,25 +54,30 @@ void *receive_message(void *ssl_conn) {
 }
 
 int main() {
+    // Initialize SSL context
     SSL_CTX *ctx = initialize_ssl_context();
 
+    // Create a socket for communication
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1) {
         perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
 
+    // Set up server address
     struct sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
     serverAddr.sin_addr.s_addr = INADDR_ANY;
 
+    // Connect to the server
     if (connect(sock, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("Connect failed");
         exit(EXIT_FAILURE);
     }
 
+    // Create SSL structure for the connection
     SSL *ssl = SSL_new(ctx);
     SSL_set_fd(ssl, sock);
     if (SSL_connect(ssl) != 1) {
@@ -87,6 +92,7 @@ int main() {
     const char *client_id = "Client"; // You can change this to the desired client identifier
     SSL_write(ssl, client_id, strlen(client_id));
 
+    // Create a new thread to receive messages from the server
     pthread_t recv_thread;
     if (pthread_create(&recv_thread, NULL, receive_message, ssl) != 0) {
         perror("Thread creation failed");
@@ -97,6 +103,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    // Main loop to send messages to the server
     printf("Enter 'exit' to quit or start typing messages.\n");
     char buffer[BUFFER_SIZE];
     while (fgets(buffer, BUFFER_SIZE, stdin)) {
@@ -110,6 +117,7 @@ int main() {
         }
     }
 
+    // Clean up before exiting
     pthread_cancel(recv_thread);
     pthread_join(recv_thread, NULL);
     SSL_shutdown(ssl);
