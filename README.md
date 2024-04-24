@@ -48,6 +48,11 @@ This is a simple chat application that allows users to communicate securely over
 
 4. Start typing messages to chat with other connected clients. Enter 'exit' to quit.
 
+### Spy Scenario
+1. Start spyClient2 on another terminal to see if anyone who don't have SSL key can connect the line. This scenario show secure communication is established between clients.
+
+
+
 ## File Structure
 
 - `chat_server.c`: Source code for the server application.
