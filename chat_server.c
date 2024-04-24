@@ -55,21 +55,30 @@ void remove_client(int socket) {
         }
     }
     pthread_mutex_unlock(&clients_mutex);
-}
-
-void* handle_client(void* arg) {
+}void* handle_client(void* arg) {
     client_t *client = (client_t*)arg;
     char buffer[BUFFER_SIZE];
     int bytes_read;
 
+    // First, read the client's identifier
+    bytes_read = SSL_read(client->ssl, client->identifier, sizeof(client->identifier)-1);
+    if (bytes_read > 0) {
+        client->identifier[bytes_read] = '\0'; // Ensure null termination
+    } else {
+        // If we cannot read the identifier, clean up and exit this client's thread
+        SSL_shutdown(client->ssl);
+        SSL_free(client->ssl);
+        close(client->socket);
+        remove_client(client->socket);
+        free(client);
+        return NULL;
+    }
+
+    // Now proceed with the regular message handling
     while ((bytes_read = SSL_read(client->ssl, buffer, sizeof(buffer)-1)) > 0) {
         buffer[bytes_read] = '\0';
-        char full_message[BUFFER_SIZE];
-        int ret = snprintf(full_message, sizeof(full_message), "%s: %s", client->identifier, buffer);
-        if (ret >= BUFFER_SIZE) {
-            // Handle truncation
-            fprintf(stderr, "Message truncated. Increase BUFFER_SIZE to accommodate larger messages.\n");
-        }
+        char full_message[8500]; // Increased buffer size to accommodate potential truncation
+        snprintf(full_message, sizeof(full_message), "%s: %s", client->identifier, buffer);
         broadcast_message(full_message, client->socket);
     }
 
@@ -80,6 +89,8 @@ void* handle_client(void* arg) {
     free(client);
     return NULL;
 }
+
+
 
 int main() {
     SSL_library_init();
@@ -136,7 +147,24 @@ int main() {
         client_t *new_client = (client_t*)malloc(sizeof(client_t));
         new_client->socket = client_fd;
         new_client->ssl = ssl;
-        snprintf(new_client->identifier, sizeof(new_client->identifier), "Client%d", client_fd);  // Assign identifier based on socket fd
+
+        // Send a prompt to the client requesting their name
+        const char *name_prompt = "Please enter your name: ";
+        SSL_write(ssl, name_prompt, strlen(name_prompt));
+
+        // Read the client's name
+        int bytes_read = SSL_read(ssl, new_client->identifier, sizeof(new_client->identifier) - 1);
+        if (bytes_read > 0) {
+            new_client->identifier[bytes_read] = '\0'; // Ensure null termination
+        } else {
+            // If we cannot read the name, clean up and exit this client's thread
+            SSL_shutdown(ssl);
+            SSL_free(ssl);
+            close(client_fd);
+            free(new_client);
+            continue;
+        }
+
         add_client(new_client);
 
         pthread_t thread_tid;

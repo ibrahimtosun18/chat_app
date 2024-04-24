@@ -53,13 +53,7 @@ void *receive_message(void *ssl_conn) {
     return NULL;
 }
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <client_id>\n", argv[0]);
-        return 1;
-    }
-
-    char* client_id = argv[1];
+int main() {
     SSL_CTX *ctx = initialize_ssl_context();
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -81,7 +75,6 @@ int main(int argc, char *argv[]) {
 
     SSL *ssl = SSL_new(ctx);
     SSL_set_fd(ssl, sock);
-
     if (SSL_connect(ssl) != 1) {
         ERR_print_errors_fp(stderr);
         SSL_free(ssl);
@@ -90,7 +83,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Send the identifier to the server right after establishing the SSL connection
+    // Send the client identifier to the server
+    const char *client_id = "Client"; // You can change this to the desired client identifier
     SSL_write(ssl, client_id, strlen(client_id));
 
     pthread_t recv_thread;
