@@ -14,6 +14,7 @@
 
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+// Structure to hold client information
 typedef struct {
     int socket;
     SSL *ssl;
@@ -23,6 +24,7 @@ typedef struct {
 client_t *clients[MAX_CLIENTS];
 int n_clients = 0;
 
+// Function to broadcast messages to all clients except the sender
 void broadcast_message(const char *message, int sender_socket) {
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < n_clients; i++) {
@@ -33,6 +35,7 @@ void broadcast_message(const char *message, int sender_socket) {
     pthread_mutex_unlock(&clients_mutex);
 }
 
+// Function to add a new client to the client list
 void add_client(client_t *cl) {
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -45,6 +48,7 @@ void add_client(client_t *cl) {
     pthread_mutex_unlock(&clients_mutex);
 }
 
+// Function to remove a client from the client list
 void remove_client(int socket) {
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -55,7 +59,10 @@ void remove_client(int socket) {
         }
     }
     pthread_mutex_unlock(&clients_mutex);
-}void* handle_client(void* arg) {
+}
+
+// Thread function to handle communication with each client
+void* handle_client(void* arg) {
     client_t *client = (client_t*)arg;
     char buffer[BUFFER_SIZE];
     int bytes_read;
@@ -77,11 +84,12 @@ void remove_client(int socket) {
     // Now proceed with the regular message handling
     while ((bytes_read = SSL_read(client->ssl, buffer, sizeof(buffer)-1)) > 0) {
         buffer[bytes_read] = '\0';
-        char full_message[8500]; // Increased buffer size to accommodate potential truncation
+        char full_message[BUFFER_SIZE];
         snprintf(full_message, sizeof(full_message), "%s: %s", client->identifier, buffer);
         broadcast_message(full_message, client->socket);
     }
 
+    // Clean up and exit the thread when the client disconnects
     SSL_shutdown(client->ssl);
     SSL_free(client->ssl);
     close(client->socket);
@@ -90,24 +98,27 @@ void remove_client(int socket) {
     return NULL;
 }
 
-
-
 int main() {
+    // Initialize OpenSSL
     SSL_library_init();
     OpenSSL_add_ssl_algorithms();
     SSL_load_error_strings();
+
+    // Create SSL context
     SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());
     if (!ctx) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
+    // Load server certificate and private key
     if (SSL_CTX_use_certificate_file(ctx, "/home/ibrahim/Desktop/SSL certificates/server-cert.pem", SSL_FILETYPE_PEM) != 1 ||
         SSL_CTX_use_PrivateKey_file(ctx, "/home/ibrahim/Desktop/SSL certificates/server-key.pem", SSL_FILETYPE_PEM) != 1) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
+    // Create a socket for communication
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
@@ -115,11 +126,13 @@ int main() {
     serverAddr.sin_port = htons(PORT);
     serverAddr.sin_addr.s_addr = INADDR_ANY;
 
+    // Bind the socket to the server address
     if (bind(server_fd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
 
+    // Listen for incoming connections
     if (listen(server_fd, 10) < 0) {
         perror("Failed to listen");
         exit(EXIT_FAILURE);
@@ -127,6 +140,7 @@ int main() {
 
     printf("Server is listening on port %d...\n", PORT);
 
+    // Accept and handle incoming connections
     while (1) {
         struct sockaddr_in clientAddr;
         socklen_t clientAddrLen = sizeof(clientAddr);
@@ -136,6 +150,7 @@ int main() {
             continue;
         }
 
+        // Create SSL structure for the connection
         SSL *ssl = SSL_new(ctx);
         SSL_set_fd(ssl, client_fd);
         if (SSL_accept(ssl) <= 0) {
@@ -144,6 +159,7 @@ int main() {
             continue;
         }
 
+        // Allocate memory for client structure and initialize it
         client_t *new_client = (client_t*)malloc(sizeof(client_t));
         new_client->socket = client_fd;
         new_client->ssl = ssl;
@@ -165,8 +181,10 @@ int main() {
             continue;
         }
 
+        // Add the new client to the client list
         add_client(new_client);
 
+        // Create a new thread to handle communication with the client
         pthread_t thread_tid;
         if (pthread_create(&thread_tid, NULL, handle_client, new_client) != 0) {
             perror("Thread creation failed");
@@ -178,6 +196,7 @@ int main() {
         }
     }
 
+    // Clean up before exiting
     SSL_CTX_free(ctx);
     close(server_fd);
     return 0;
