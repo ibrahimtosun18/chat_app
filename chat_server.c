@@ -1,17 +1,48 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+/*
+
+Author: Ibrahim TOSUN
+Email: ibrahim.tsn18@gmail.com
+Date: 2021-05-25
+
+
+List of what we did in this code:
+1.  We have included the necessary headers for the chat server.
+2.  We have defined the port number and the maximum number of clients that the server can handle.
+3.  We have defined the buffer size for reading and writing messages.
+4.  We have defined a mutex to protect the client list.
+5.  We have defined a structure to hold client information.
+6.  We have defined an array to store the list of clients and a variable to keep track of the number of clients.
+7.  We have implemented a function to broadcast messages to all clients except the sender.
+8.  We have implemented functions to add and remove clients from the client list.
+9.  We have implemented a function to handle communication with a client.
+10. We have initialized the OpenSSL library and created an SSL context for the server.
+11. We have loaded the server certificate and private key into the SSL context.
+12. We have created a socket for communication and bound it to the server address.
+13. We have listened for incoming connections and accepted them.
+14. We have created an SSL structure for the connection and accepted the SSL handshake.
+15. We have allocated memory for a new client structure and initialized it.
+16. We have sent a prompt to the client requesting their name and read the client's name.
+17. We have added the new client to the client list and created a new thread to handle communication with the client.
+18. We have cleaned up before exiting.
+*/
+
+
+#include <stdio.h> // Standard input/output header file
+#include <stdlib.h> // Standard library header file
+#include <string.h> // String header file
+#include <pthread.h> // POSIX thread header file
+#include <unistd.h> // UNIX standard header file
+#include <sys/socket.h> // Socket header file
+#include <netinet/in.h> // Internet address family header file
+#include <openssl/ssl.h> // OpenSSL SSL/TLS header file
+#include <openssl/err.h> // OpenSSL error header file
 
 #define PORT 8080
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 8192  // Increased buffer size
 
+
+// Mutex to protect the client list
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Structure to hold client information
@@ -21,6 +52,7 @@ typedef struct {
     char identifier[50];  // Buffer to store the client's identifier
 } client_t;
 
+// Array to store the list of clients
 client_t *clients[MAX_CLIENTS];
 int n_clients = 0;
 
@@ -60,8 +92,12 @@ void remove_client(int socket) {
     }
     pthread_mutex_unlock(&clients_mutex);
 }
+/*
+Function to handle communication with a client. This function is executed in a separate thread for each client. 
+It reads messages from the client and broadcasts them to all other clients.
+*/
 void* handle_client(void* arg) {
-    client_t *client = (client_t*)arg;
+    client_t *client = (client_t*)arg; // Cast the argument to a client structure
     char buffer[BUFFER_SIZE];
     int bytes_read;
 
@@ -80,7 +116,8 @@ void* handle_client(void* arg) {
     }
 
     // Now proceed with the regular message handling
-    while ((bytes_read = SSL_read(client->ssl, buffer, sizeof(buffer)-1)) > 0) {
+    while ((bytes_read = SSL_read(client->ssl, buffer, sizeof(buffer)-1)) > 0) 
+    {
         buffer[bytes_read] = '\0';
         char full_message[8500]; // Increased buffer size to accommodate potential truncation
         snprintf(full_message, sizeof(full_message), "%s: %s", client->identifier, buffer);
@@ -198,3 +235,6 @@ int main() {
     close(server_fd);
     return 0;
 }
+
+
+
