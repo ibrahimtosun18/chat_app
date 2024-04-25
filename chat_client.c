@@ -1,3 +1,14 @@
+/*
+Author: Ibrahim TOSUN
+Email: ibrahim.tsn18@gmail.com
+Date: 2021-05-25
+
+
+The client program is similar to the server program in terms of SSL initialization and connection setup. 
+The main difference is that the client program connects to the server instead of listening for incoming connections. 
+The client also creates a separate thread to continuously receive messages from the server while allowing the main thread to send messages.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
