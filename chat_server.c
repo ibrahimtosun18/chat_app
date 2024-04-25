@@ -60,8 +60,6 @@ void remove_client(int socket) {
     }
     pthread_mutex_unlock(&clients_mutex);
 }
-
-// Thread function to handle communication with each client
 void* handle_client(void* arg) {
     client_t *client = (client_t*)arg;
     char buffer[BUFFER_SIZE];
@@ -84,12 +82,11 @@ void* handle_client(void* arg) {
     // Now proceed with the regular message handling
     while ((bytes_read = SSL_read(client->ssl, buffer, sizeof(buffer)-1)) > 0) {
         buffer[bytes_read] = '\0';
-        char full_message[BUFFER_SIZE];
+        char full_message[8500]; // Increased buffer size to accommodate potential truncation
         snprintf(full_message, sizeof(full_message), "%s: %s", client->identifier, buffer);
         broadcast_message(full_message, client->socket);
     }
 
-    // Clean up and exit the thread when the client disconnects
     SSL_shutdown(client->ssl);
     SSL_free(client->ssl);
     close(client->socket);
