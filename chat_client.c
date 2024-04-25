@@ -107,8 +107,8 @@ int main() {
     printf("Enter 'exit' to quit or start typing messages.\n");
     char buffer[BUFFER_SIZE];
     while (fgets(buffer, BUFFER_SIZE, stdin)) {
+        printf(":");
         buffer[strcspn(buffer, "\n")] = '\0'; // Remove newline character
-
         if (strcmp(buffer, "exit") == 0) break;
 
         if (SSL_write(ssl, buffer, strlen(buffer)) <= 0) {
