@@ -67,3 +67,7 @@ This is a simple chat application that allows users to communicate securely over
 - Ensure that the CA certificate file is trusted by the client for successful SSL/TLS handshake.
 - The client application allows multiple clients to connect to the server simultaneously.
 
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
